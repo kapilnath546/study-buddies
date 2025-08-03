@@ -179,7 +179,7 @@ export default function Matches() {
                       <p className="text-muted-foreground">{currentProfile.course}</p>
                     </div>
 
-                    {currentProfile.skills.length > 0 && (
+                    {currentProfile.skills && currentProfile.skills.length > 0 && (
                       <div className="space-y-2">
                         <p className="font-medium">Skills</p>
                         <div className="flex flex-wrap gap-1 justify-center">
@@ -197,7 +197,7 @@ export default function Matches() {
                       </div>
                     )}
 
-                    {currentProfile.interests.length > 0 && (
+                    {currentProfile.interests && currentProfile.interests.length > 0 && (
                       <div className="space-y-2">
                         <p className="font-medium">Interests</p>
                         <div className="flex flex-wrap gap-1 justify-center">
