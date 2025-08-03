@@ -41,6 +41,36 @@ export type Database = {
         }
         Relationships: []
       }
+      login_streaks: {
+        Row: {
+          created_at: string
+          current_streak: number
+          id: string
+          last_login_date: string | null
+          max_streak: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_streak?: number
+          id?: string
+          last_login_date?: string | null
+          max_streak?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_streak?: number
+          id?: string
+          last_login_date?: string | null
+          max_streak?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       matches: {
         Row: {
           created_at: string
@@ -96,6 +126,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      polls: {
+        Row: {
+          created_at: string
+          id: string
+          options: string[]
+          question: string
+          updated_at: string
+          user_id: string
+          votes: Json | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          options: string[]
+          question: string
+          updated_at?: string
+          user_id: string
+          votes?: Json | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          options?: string[]
+          question?: string
+          updated_at?: string
+          user_id?: string
+          votes?: Json | null
+        }
+        Relationships: []
       }
       posts: {
         Row: {

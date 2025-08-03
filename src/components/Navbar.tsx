@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { Home, Users, User, MessageCircle, LogOut, GraduationCap } from 'lucide-react';
+import StreakTracker from './StreakTracker';
 
 export const Navbar = () => {
   const { user, signOut } = useAuth();
@@ -62,6 +63,9 @@ export const Navbar = () => {
                 <User className="w-4 h-4 mr-2" />
                 Profile
               </Link>
+              
+              <StreakTracker />
+              
               <Button 
                 variant="ghost" 
                 onClick={signOut} 

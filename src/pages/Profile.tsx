@@ -154,11 +154,17 @@ export default function Profile() {
         avatar_url: formData.avatar_url,
       };
 
+      // Use upsert with onConflict to handle the unique constraint properly
       const { error } = await supabase
         .from('profiles')
-        .upsert(profileData);
+        .upsert(profileData, {
+          onConflict: 'user_id'
+        });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Profile save error:', error);
+        throw error;
+      }
 
       toast({
         title: "✅ Profile Updated!",
