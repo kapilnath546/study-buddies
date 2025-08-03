@@ -144,7 +144,7 @@ export default function Feed() {
       .from('polls')
       .select(`
         *,
-        profiles (
+        profiles!polls_user_id_fkey (
           name,
           avatar_url
         )
@@ -156,7 +156,14 @@ export default function Feed() {
       return;
     }
 
-    setPolls(data || []);
+    // Transform the data to match our Poll interface
+    const transformedPolls = (data || []).map(poll => ({
+      ...poll,
+      votes: typeof poll.votes === 'object' && poll.votes !== null ? poll.votes as Record<string, number> : {},
+      profiles: Array.isArray(poll.profiles) ? poll.profiles[0] : poll.profiles
+    }));
+
+    setPolls(transformedPolls);
   };
 
   const fetchTrendingPosts = async () => {
@@ -164,13 +171,7 @@ export default function Feed() {
     
     const { data, error } = await supabase
       .from('posts')
-      .select(`
-        *,
-        profiles (
-          name,
-          avatar_url
-        )
-      `)
+      .select('*')
       .gte('created_at', twentyFourHoursAgo)
       .order('likes', { ascending: false })
       .limit(3);
@@ -180,7 +181,24 @@ export default function Feed() {
       return;
     }
 
-    setTrendingPosts(data || []);
+    // Fetch profiles separately for trending posts
+    const userIds = [...new Set(data?.map(post => post.user_id) || [])];
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('user_id, name, avatar_url')
+      .in('user_id', userIds);
+
+    const profilesMap = new Map();
+    profilesData?.forEach(profile => {
+      profilesMap.set(profile.user_id, profile);
+    });
+
+    const trendingPostsWithProfiles = data?.map(post => ({
+      ...post,
+      profiles: profilesMap.get(post.user_id) || null
+    })) || [];
+
+    setTrendingPosts(trendingPostsWithProfiles);
   };
 
   const fetchFilterOptions = async () => {
@@ -644,7 +662,7 @@ export default function Feed() {
                     {/* Comments Section */}
                     {expandedComments.has(post.id) && (
                       <div className="mt-4">
-                        <CommentSection postId={post.id} />
+                        <CommentSection postId={post.id} isOpen={expandedComments.has(post.id)} />
                       </div>
                     )}
                   </div>

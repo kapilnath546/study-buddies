@@ -82,6 +82,7 @@ export default function Chat() {
       .from('matches')
       .select('*')
       .eq('id', matchId)
+      .or(`user_id.eq.${user.id},matched_user_id.eq.${user.id}`)
       .single();
 
     if (error) {
