@@ -6,10 +6,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { CommentSection } from '@/components/CommentSection';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Heart, MessageCircle, Plus, Upload } from 'lucide-react';
+import { Heart, MessageCircle, Plus, Upload, ImageIcon } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Post {
@@ -34,6 +35,8 @@ export default function Feed() {
   const [postImage, setPostImage] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [openComments, setOpenComments] = useState<Set<string>>(new Set());
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchPosts();
@@ -170,12 +173,47 @@ export default function Feed() {
   };
 
   const likePost = async (postId: string, currentLikes: number) => {
-    const { error } = await supabase
-      .from('posts')
-      .update({ likes: currentLikes + 1 })
-      .eq('id', postId);
+    if (likedPosts.has(postId)) {
+      toast({
+        title: "Already liked",
+        description: "You can only like a post once",
+      });
+      return;
+    }
 
-    if (error) {
+    // Optimistic update
+    setLikedPosts(prev => new Set(prev).add(postId));
+    setPosts(prev => prev.map(post => 
+      post.id === postId 
+        ? { ...post, likes: post.likes + 1 }
+        : post
+    ));
+
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .update({ likes: currentLikes + 1 })
+        .eq('id', postId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Liked!",
+        description: "You liked this post",
+      });
+    } catch (error) {
+      // Revert optimistic update on error
+      setLikedPosts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(postId);
+        return newSet;
+      });
+      setPosts(prev => prev.map(post => 
+        post.id === postId 
+          ? { ...post, likes: post.likes - 1 }
+          : post
+      ));
+      
       toast({
         title: "Error",
         description: "Failed to like post",
@@ -184,49 +222,71 @@ export default function Feed() {
     }
   };
 
+  const toggleComments = (postId: string) => {
+    setOpenComments(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(postId)) {
+        newSet.delete(postId);
+      } else {
+        newSet.add(postId);
+      }
+      return newSet;
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-2xl mx-auto p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 pb-20 sm:pb-6">
+      <div className="max-w-2xl mx-auto p-4 sm:p-6 space-y-6">
         {/* Create Post Button */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="w-full" size="lg">
-              <Plus className="w-4 h-4 mr-2" />
+            <Button 
+              className="w-full bg-gradient-to-r from-primary via-primary/95 to-primary/90 hover:from-primary/90 hover:via-primary/85 hover:to-primary/80 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]" 
+              size="lg"
+            >
+              <Plus className="w-5 h-5 mr-2" />
               Create New Post
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Create a New Post</DialogTitle>
+              <DialogTitle className="text-lg font-semibold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+                Create a New Post
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="content">What's on your mind?</Label>
+                <Label htmlFor="content" className="text-sm font-medium">What's on your mind?</Label>
                 <Textarea
                   id="content"
                   value={newPost}
                   onChange={(e) => setNewPost(e.target.value)}
                   placeholder="Share your thoughts, ask questions, or start a discussion..."
                   rows={4}
+                  className="mt-1 resize-none bg-muted/50 border-border/50 focus:border-primary/50 transition-colors"
                 />
               </div>
               
               <div>
-                <Label htmlFor="image">Add an image (optional)</Label>
+                <Label htmlFor="image" className="text-sm font-medium flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4" />
+                  Add an image (optional)
+                </Label>
                 <Input
                   id="image"
                   type="file"
                   accept="image/*"
                   onChange={(e) => setPostImage(e.target.files?.[0] || null)}
+                  className="mt-1"
                 />
               </div>
 
               {postImage && (
-                <div className="mt-2">
+                <div className="mt-3">
                   <img
                     src={URL.createObjectURL(postImage)}
                     alt="Preview"
-                    className="max-w-full h-48 object-cover rounded"
+                    className="max-w-full h-48 object-cover rounded-xl shadow-md"
                   />
                 </div>
               )}
@@ -234,9 +294,16 @@ export default function Feed() {
               <Button 
                 onClick={createPost} 
                 disabled={uploading || !newPost.trim()}
-                className="w-full"
+                className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-md hover:shadow-lg transition-all duration-200"
               >
-                {uploading ? 'Posting...' : 'Post'}
+                {uploading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Posting...
+                  </div>
+                ) : (
+                  'Post'
+                )}
               </Button>
             </div>
           </DialogContent>
@@ -244,54 +311,76 @@ export default function Feed() {
 
         {/* Posts Feed */}
         {posts.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-8">
-              <p className="text-muted-foreground">No posts yet. Be the first to share something!</p>
+          <Card className="shadow-lg border-border/50 bg-gradient-to-br from-card to-card/50">
+            <CardContent className="text-center py-12">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl flex items-center justify-center">
+                <MessageCircle className="w-8 h-8 text-primary/60" />
+              </div>
+              <p className="text-muted-foreground text-lg">No posts yet. Be the first to share something!</p>
             </CardContent>
           </Card>
         ) : (
           posts.map((post) => (
-            <Card key={post.id}>
-              <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-                <Avatar className="w-10 h-10 mr-3">
+            <Card 
+              key={post.id} 
+              className="shadow-lg hover:shadow-xl border-border/50 bg-gradient-to-br from-card to-card/80 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] rounded-2xl overflow-hidden"
+            >
+              <CardHeader className="flex flex-row items-center space-y-0 pb-3">
+                <Avatar className="w-12 h-12 mr-3 shadow-md ring-2 ring-primary/10">
                   <AvatarImage src={post.profiles?.avatar_url || ''} />
-                  <AvatarFallback>
+                  <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-semibold">
                     {post.profiles?.name?.charAt(0).toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
-                  <p className="font-semibold">{post.profiles?.name || 'Unknown User'}</p>
+                  <p className="font-semibold text-foreground">{post.profiles?.name || 'Unknown User'}</p>
                   <p className="text-sm text-muted-foreground">
                     {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
                   </p>
                 </div>
               </CardHeader>
-              <CardContent>
-                <p className="mb-4 whitespace-pre-wrap">{post.content}</p>
+              <CardContent className="pt-0">
+                <p className="mb-4 whitespace-pre-wrap text-foreground leading-relaxed">{post.content}</p>
                 
                 {post.image_url && (
-                  <img
-                    src={post.image_url}
-                    alt="Post image"
-                    className="w-full rounded-lg mb-4 max-h-96 object-cover"
-                  />
+                  <div className="mb-4 rounded-xl overflow-hidden shadow-md">
+                    <img
+                      src={post.image_url}
+                      alt="Post image"
+                      className="w-full max-h-96 object-cover transition-transform duration-300 hover:scale-105"
+                    />
+                  </div>
                 )}
                 
-                <div className="flex items-center space-x-4 pt-2 border-t">
+                <div className="flex items-center space-x-1 pt-3 border-t border-border/30">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => likePost(post.id, post.likes)}
-                    className="flex items-center space-x-2"
+                    className={`flex items-center space-x-2 rounded-xl transition-all duration-200 hover:bg-red-50 hover:text-red-600 ${
+                      likedPosts.has(post.id) ? 'text-red-600 bg-red-50' : ''
+                    }`}
                   >
-                    <Heart className="w-4 h-4" />
-                    <span>{post.likes}</span>
+                    <Heart className={`w-4 h-4 ${likedPosts.has(post.id) ? 'fill-current' : ''}`} />
+                    <span className="font-medium">{post.likes}</span>
                   </Button>
-                  <Button variant="ghost" size="sm" className="flex items-center space-x-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => toggleComments(post.id)}
+                    className={`flex items-center space-x-2 rounded-xl transition-all duration-200 hover:bg-blue-50 hover:text-blue-600 ${
+                      openComments.has(post.id) ? 'text-blue-600 bg-blue-50' : ''
+                    }`}
+                  >
                     <MessageCircle className="w-4 h-4" />
-                    <span>Comment</span>
+                    <span className="font-medium">Comment</span>
                   </Button>
                 </div>
+
+                <CommentSection 
+                  postId={post.id} 
+                  isOpen={openComments.has(post.id)} 
+                />
               </CardContent>
             </Card>
           ))

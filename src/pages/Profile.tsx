@@ -161,11 +161,13 @@ export default function Profile() {
       if (error) throw error;
 
       toast({
-        title: "Success",
-        description: "Profile saved successfully",
+        title: "✅ Profile Updated!",
+        description: "Your profile has been saved successfully",
+        className: "bg-green-50 border-green-200 text-green-800",
       });
       
-      navigate('/feed');
+      // Don't navigate away, let user stay on profile page
+      fetchProfile(); // Refresh the profile data
     } catch (error) {
       toast({
         title: "Error",
@@ -180,25 +182,38 @@ export default function Profile() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-2xl mx-auto p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Complete Your Profile</CardTitle>
-            <CardDescription>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 pb-20 sm:pb-6">
+      <div className="max-w-2xl mx-auto p-4 sm:p-6">
+        <Card className="shadow-xl border-border/50 bg-gradient-to-br from-card to-card/80 backdrop-blur-sm rounded-2xl">
+          <CardHeader className="pb-6">
+            <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+              {profile ? 'Edit Your Profile' : 'Complete Your Profile'}
+            </CardTitle>
+            <CardDescription className="text-base">
               Let other students know about you and your interests
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-8">
             {/* Avatar Upload */}
             <div className="flex flex-col items-center space-y-4">
-              <Avatar className="w-24 h-24">
-                <AvatarImage src={formData.avatar_url || ''} />
-                <AvatarFallback>{formData.name.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div>
+              <div className="relative">
+                <Avatar className="w-28 h-28 shadow-xl ring-4 ring-primary/20">
+                  <AvatarImage src={formData.avatar_url || ''} />
+                  <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary text-lg font-semibold">
+                    {formData.name?.charAt(0).toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute -bottom-2 -right-2">
+                  <Label htmlFor="avatar" className="cursor-pointer">
+                    <div className="w-10 h-10 bg-primary text-white rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow">
+                      <Upload className="w-4 h-4" />
+                    </div>
+                  </Label>
+                </div>
+              </div>
+              <div className="text-center">
                 <Label htmlFor="avatar" className="cursor-pointer">
-                  <Button variant="outline" disabled={uploading} asChild>
+                  <Button variant="outline" disabled={uploading} asChild className="rounded-xl">
                     <span>
                       <Upload className="w-4 h-4 mr-2" />
                       {uploading ? 'Uploading...' : 'Upload Avatar'}
@@ -216,36 +231,38 @@ export default function Profile() {
             </div>
 
             {/* Name */}
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+            <div className="space-y-3">
+              <Label htmlFor="name" className="text-sm font-semibold">Full Name</Label>
               <Input
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                 placeholder="Enter your full name"
+                className="rounded-xl bg-muted/50 border-border/50 focus:border-primary/50 transition-colors"
               />
             </div>
 
             {/* Course */}
-            <div className="space-y-2">
-              <Label htmlFor="course">Course/Department</Label>
+            <div className="space-y-3">
+              <Label htmlFor="course" className="text-sm font-semibold">Course/Department</Label>
               <Input
                 id="course"
                 value={formData.course}
                 onChange={(e) => setFormData(prev => ({ ...prev, course: e.target.value }))}
                 placeholder="e.g., Computer Science Engineering"
+                className="rounded-xl bg-muted/50 border-border/50 focus:border-primary/50 transition-colors"
               />
             </div>
 
             {/* Skills */}
-            <div className="space-y-2">
-              <Label>Skills</Label>
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold">Skills</Label>
               <div className="flex flex-wrap gap-2">
                 {skillOptions.map((skill) => (
                   <Badge
                     key={skill}
                     variant={formData.skills.includes(skill) ? "default" : "outline"}
-                    className="cursor-pointer"
+                    className="cursor-pointer rounded-full px-3 py-1 transition-all duration-200 hover:scale-105 hover:shadow-md"
                     onClick={() => toggleSkill(skill)}
                   >
                     {skill}
@@ -255,17 +272,18 @@ export default function Profile() {
                   </Badge>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground">Click to add/remove skills</p>
             </div>
 
             {/* Interests */}
-            <div className="space-y-2">
-              <Label>Interests</Label>
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold">Interests</Label>
               <div className="flex flex-wrap gap-2">
                 {interestOptions.map((interest) => (
                   <Badge
                     key={interest}
                     variant={formData.interests.includes(interest) ? "default" : "outline"}
-                    className="cursor-pointer"
+                    className="cursor-pointer rounded-full px-3 py-1 transition-all duration-200 hover:scale-105 hover:shadow-md"
                     onClick={() => toggleInterest(interest)}
                   >
                     {interest}
@@ -275,14 +293,22 @@ export default function Profile() {
                   </Badge>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground">Click to add/remove interests</p>
             </div>
 
             <Button 
               onClick={saveProfile} 
-              className="w-full" 
+              className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl py-3 text-base font-semibold" 
               disabled={loading || !formData.name}
             >
-              {loading ? 'Saving...' : 'Save Profile'}
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Saving...
+                </div>
+              ) : (
+                'Save Profile'
+              )}
             </Button>
           </CardContent>
         </Card>
